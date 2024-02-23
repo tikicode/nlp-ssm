@@ -36,25 +36,17 @@ class CausalSelfAttention(nn.Module):
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
 
-        # TODO: create a causal mask for attention matrix of shape [config.block_size, config.block_size] (config.block_size is the maximum sequence length)
-        #   The matrix should has 1s in the lower left triangular part (including the diagonal) and 0s in the upper right.
-        #   Name the matrix `causal_mask`
-        # Hint: you can check torch.tril for creating the matrix with the help of torch.ones.
-        raise NotImplementedError
-        # your code ends here
-
-        # expand the mask for the batch and head dimensions
+        # casual mask
+        casual_mask = torch.tril(torch.ones(config.block_size, config.block_size))
         casual_mask = casual_mask.view(1, 1, config.block_size, config.block_size)
-        # register the mask as a buffer so it's not updated as a model parameter
-        # but can still be used in the forward pass & saved to the state_dict
         self.register_buffer("causal_mask", casual_mask)
+        
         self.n_head = config.n_head
         self.n_embd = config.n_embd
 
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
 
-        # TODO: implement the forward pass of the casual self-attention layer.
         # project the input to key, query, value vectors
         # each of shape (B, T, n_embd)
         q, k ,v  = self.c_attn(x).split(self.n_embd, dim=2)
@@ -66,12 +58,15 @@ class CausalSelfAttention(nn.Module):
         # - transpose the result so that move n_head forward to be the batch dimension
         # we provide the implementation for the key projections as an example
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, n_head, T, n_embd / n_head)
-        # similarly, implement the query and value projections
-        raise NotImplementedError
+        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+
 
         # causal self-attention; Self-attend: (B, n_head, T, n_embd / n_head) x (B, n_head, n_embd / n_head, T) -> (B, n_head, T, T)
         # calculate the scaled dot-product attention with causal mask, name the attention matrix as `att`
         # step 1: q @ k^T / sqrt(d_k), where d_k is the head hidden dimension (n_embd / n_head)
+        d_k = C // self.n_head
+        att = (q @ k.T) / math.sqrt(d_k)
 
         # step 2: apply the causal mask to the attention matrix
         # the masked out entries in att should have the value of float('-inf')
@@ -80,20 +75,24 @@ class CausalSelfAttention(nn.Module):
         # - don't forget to truncate the mask to the actual sequence length (T)
         # - to apply the mask, one possible way is the `torch.Tensor.masked_fill` method
         # - - for this, you can obtain the boolean mask by element-wise comparison of the causal mask with 0
+        att = att * self.causal_mask[:][:][:T][:T]
+        att = att.masked_fill(att == 0, float("-inf"))
 
         # step 3: apply the softmax function to the masked attention matrix
         # hint: you can use the `F.softmax` function
+        att = F.softmax(att, dim=3)
 
         # step 4: apply the attention dropout (self.attn_dropout) to the attention matrix
+        att = self.attn_dropout(att)
 
         # step 5: multiply the attention matrix with value vectors
-
-        # your code ends here
+        y = att @ v
 
         y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
 
         # output projection
         y = self.resid_dropout(self.c_proj(y))
+        
         return y
 
 class Block(nn.Module):
