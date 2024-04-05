@@ -272,6 +272,7 @@ def main():
         )
 
     max_target_length = data_args.max_target_length
+    max_source_length = data_args.max_source_length
     padding = "max_length" if data_args.pad_to_max_length else False
 
     def preprocess_function(examples):
@@ -284,22 +285,21 @@ def main():
 
         inputs = [prefix + inp for inp in inputs]
 
-        ## TODO: Tokenize inputs
+        # Tokenize inputs
         # - Create a dictionary named `model_inputs` with datatype Dict[str, torch.Tensor]
         # Hints:
         # - we have defined `max_source_length` and `padding` above
         # - call the `tokenizer()` to tokenize the inputs, and set the `max_length`, `padding`, and `truncation` (set to True) arguments
-        raise NotImplementedError("Tokenize inputs")
+        model_inputs = tokenizer(inputs, max_length=max_source_length, padding=padding, truncation=True)
 
         # Tokenize targets
-        # Create a dictionary named `labels` with datatype Dict[str, torch.Tensor]
+        # - Create a dictionary named `labels` with datatype Dict[str, torch.Tensor]
         # Hints:
         # - similar as above, call the `tokenizer()` to tokenize the targets
         # - set the keyword argument `text_target` to the targets
         # - the max_length is different from the inputs
         # - other keyword arguments are the same as the inputs
-
-        # your code ends here
+        labels = tokenizer(targets, max_length=max_target_length, padding=padding, truncation=True)
 
         # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
         # padding in the loss.
@@ -392,24 +392,23 @@ def main():
 
     training_args.per_device_train_batch_size = 4
     training_args.per_device_eval_batch_size = 4
-    # TODO: Initialize our Trainer
-    # name it `trainer`
+    
+    # Initialize our Trainer
+    # - name it `trainer`
     # Hints:
     # - check out the `Seq2SeqTrainer` class (https://huggingface.co/docs/transformers/main_classes/trainer#transformers.Seq2SeqTrainer)
     # - use pre-defined arguments and functions/objects
     # - set the `model`, `args`, `train_dataset`, `eval_dataset`, `tokenizer`, `data_collator`, and `compute_metrics` arguments
     # - see how we define/create these variables above
-    raise NotImplementedError("Initialize our Trainer")
-
-
-
-
-
-
-
-
-
-    # your code ends here
+    trainer = Seq2SeqTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics
+    )
 
     # Training
     if training_args.do_train:

@@ -229,21 +229,19 @@ def main():
     #   Refer to `./src/rlhf/ppo.py` to get all required arguments
     # - set the `args`, `train_dataloader`, `eval_dataloader`, `ref_policy_model`, `policy_model`, `value_model`,
     #   `reward_model`, `optimizer`, `scheduler`, `accelerator`, `log_info` arguments
-    raise NotImplementedError("Set up trainer")
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # your code ends here
+    trainer = PPOTrainer(
+            args,
+            train_dataloader,
+            eval_dataloader,
+            ref_policy,
+            policy,
+            value, 
+            reward,
+            optimizer, 
+            scheduler, 
+            accelerator,
+            log_info
+        )
 
     steps = list(range(total_steps + 1))
     steps = tqdm(steps) if accelerator.is_main_process else steps
